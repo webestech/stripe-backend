@@ -1,35 +1,36 @@
-// server.js
+// server.js - Stripe PaymentIntent backend for Voiceflow
+
 const express = require('express');
-const cors = require('cors');
 const Stripe = require('stripe');
+const cors = require('cors');
 
 const app = express();
-const stripe = Stripe('pk_test_51OQbm4KPZ8owkTpxta9LliORsP2XJHq6PhOB5hobdzHZibJJFNW57esUF8XjbZDkLNnli9LAremdHTpsAXm7qAYr00ebyq3UPz'); // ⬅️ Replace with your real Stripe Secret Key
+const stripe = Stripe('sk_test_YOUR_SECRET_KEY'); // Replace with your actual Stripe secret key
 
 app.use(cors());
 app.use(express.json());
 
-app.post('/charge', async (req, res) => {
-  const { token, amount } = req.body;
+// Create a PaymentIntent and return the clientSecret
+app.post('/create-payment-intent', async (req, res) => {
+  const { amount } = req.body;
 
-  if (!token || !amount) {
-    return res.status(400).json({ success: false, error: 'Missing token or amount' });
+  if (!amount) {
+    return res.status(400).json({ error: 'Amount is required.' });
   }
 
   try {
-    const charge = await stripe.charges.create({
+    const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: 'usd',
-      source: token,
-      description: 'Voiceflow chat payment'
+      automatic_payment_methods: { enabled: true }
     });
 
-    res.json({ success: true, charge });
-  } catch (err) {
-    console.error('Stripe charge failed:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.json({ clientSecret: paymentIntent.client_secret });
+  } catch (error) {
+    console.error('PaymentIntent Error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Stripe backend listening on port ${PORT}`));
+app.listen(PORT, () => console.log(`Stripe backend running on port ${PORT}`));
